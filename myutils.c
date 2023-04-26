@@ -422,8 +422,8 @@ int read_tttstep_DRAW(int sock, tttstep *step){
         }
 
         if (i == 0){
-            if (cbuff != 'D' && cbuff != 'R' && cbuff != 'A'){
-                printf("read_tttstep_DRAW's read failed; expected 'D' or 'R' or 'A' \n");
+            if (cbuff != 'S' && cbuff != 'R' && cbuff != 'A'){
+                printf("read_tttstep_DRAW's read failed; expected 'S' or 'R' or 'A' \n");
                 fflush(stdout);
                 return -1;
             } else {
@@ -587,6 +587,7 @@ int write_tttstep_MOVD(int sock, tttstep *step){
 //write_tttstep helper method, writes INVL
 int write_tttstep_INVL(int sock, tttstep *step){
     char wbuff[512];
+    wbuff[0] = '\0';
     *(step->remainingBytes) = strlen(step->reason) + 1;
 
     strcat(wbuff, "INVL|");
@@ -621,6 +622,7 @@ int write_tttstep_INVL(int sock, tttstep *step){
 //write_tttstep helper method, writes DRAW
 int write_tttstep_DRAW(int sock, tttstep *step){
     char wbuff[512];
+    wbuff[0] = '\0';
     *(step->remainingBytes) = strlen(step->message) + 1;
 
     strcat(wbuff, "DRAW|");
@@ -655,6 +657,7 @@ int write_tttstep_DRAW(int sock, tttstep *step){
 //write_tttstep helper method, writes OVER
 int write_tttstep_OVER(int sock, tttstep *step){
     char wbuff[512];
+    wbuff[0] = '\0';
     *(step->remainingBytes) = strlen(step->outcome) + strlen(step->reason) + 2;
 
     strcat(wbuff, "OVER|");
@@ -704,6 +707,8 @@ void * start_game(void *game_){
             activeRole = "O";
         }
 
+        printf("Current active player (listening to:) %s\n", activeRole);
+
         tttstep *step = create_tttstep();
         if (read_tttstep(activePlayerSocket, step) == -1){
             printf("read_tttstep failed in start_game\n");
@@ -730,6 +735,11 @@ void * start_game(void *game_){
             printf("%s RSGNed\n", activeRole);
             fflush(stdout);
             *(game->gameOverType) = 3;
+            if (strcmp(activeRole, "X") == 0){
+                strcpy(game->statusXOLoseWin, "LW");
+            } else {
+                strcpy(game->statusXOLoseWin, "WL");
+            }
             game_OVER(game, step);
         } else if (strcmp(step->msgType, "PLAY") == 0){
             printf("PLAY should not be in start_game\n");
@@ -737,7 +747,8 @@ void * start_game(void *game_){
             *(game->gameOverType) = 4;
             game_OVER(game, step);
         } else {
-            printf("Invalid msgType in start_game. This should be impossible to reach\n");
+            printf("Invalid msgType in start_game. This should be nearly impossible to reach. Killing thread\n");
+            pthread_exit(NULL);
             fflush(stdout);
             *(game->gameOverType) = 4;
             game_OVER(game, step);
@@ -753,6 +764,11 @@ int game_MOVE(tttgame *game, tttstep *step){
     coordsToIndex = ((step->position[0] - 1) * 3) + (step->position[1] - 1);
     if (game->board[coordsToIndex] == '.' && step->role[0] == game->nextPlayer[0]){
         game->board[coordsToIndex] = step->role[0];
+        if (game->nextPlayer[0] == 'X'){
+            game->nextPlayer[0] = 'O';
+        } else {
+            game->nextPlayer[0] = 'X';
+        }
     } else {
         strcpy(tempStep->msgType, "INVL");
         *(tempStep->remainingBytes) = 51;
@@ -852,6 +868,7 @@ int game_MOVE(tttgame *game, tttstep *step){
     }
 
 
+    //update nextPlayer
 
     return 0;
 
@@ -891,48 +908,65 @@ int game_DRAW(tttgame *game, tttstep *step){
         return -1;
     }
 
-    if (read_tttstep_DRAW(endingSocket, sharedStep) == -1){
-        printf("read_tttstep_DRAW failed in start_game_DRAW\n");
-        fflush(stdout);
-        return -1;
-    }
-
-    while (1){
-        if (read_tttstep_DRAW(endingSocket, sharedStep) == -1){
-            printf("read_tttstep_DRAW failed in start_game_DRAW\n");
+    while (1 == 1){
+        if (read_tttstep(endingSocket, sharedStep) == -1){
+            printf("read_tttstep failed in start_game_DRAW\n");
             fflush(stdout);
             return -1;
         }
-        if (sharedStep->message[0] != 'A' && sharedStep->message[0] != 'R'){
+        if (strcmp(sharedStep->msgType, "DRAW") != 0){
             tttstep *invalidStep = create_tttstep();
             strcpy(invalidStep->msgType, "INVL");
-            *(invalidStep->remainingBytes) = 53;
-            strcpy(invalidStep->reason, "Invalid draw, you must reply to a DRAW S with A or R");
+            *(invalidStep->remainingBytes) = 63;
+            strcpy(invalidStep->reason, "Invalid draw, you must reply to a DRAW S with DRAW A or DRAW R");
             if (write_tttstep_INVL(endingSocket, invalidStep) == -1){
                 printf("write_tttstep_INVL failed in start_game_DRAW\n");
                 fflush(stdout);
                 return -1;
             }
+            destroy_tttstep(invalidStep);
+            continue;
         }
+        if (sharedStep->message[0] != 'A' && sharedStep->message[0] != 'R'){
+            tttstep *invalidStep = create_tttstep();
+            strcpy(invalidStep->msgType, "INVL");
+            *(invalidStep->remainingBytes) = 57;
+            strcpy(invalidStep->reason, "Invalid draw, only A or R are valid arguments for DRAW S");
+            if (write_tttstep_INVL(endingSocket, invalidStep) == -1){
+                printf("write_tttstep_INVL failed in start_game_DRAW\n");
+                fflush(stdout);
+                return -1;
+            }
+            destroy_tttstep(invalidStep);
+            continue;
+        }
+        break;
+    }
         if (sharedStep->message[0] == 'A'){
             *(game->gameOverType) = 2;
             strcpy(game->statusXOLoseWin, "DD");
+            printf("DRAW S A\n");
+            fflush(stdout);
             game_OVER(game, step);
         }
         if (sharedStep->message[0] == 'R'){
             tttstep *replyStep = create_tttstep();
             strcpy(replyStep->msgType, "DRAW");
             *(replyStep->remainingBytes) = 2;
-            strcpy(replyStep->reason, "R");
-            if (write_tttstep_DRAW(endingSocket, replyStep) == -1){
+            strcpy(replyStep->message, "R");
+            if (write_tttstep_DRAW(starterSocket, replyStep) == -1){
                 printf("write_tttstep_INVL failed in start_game_DRAW\n");
                 fflush(stdout);
                 return -1;
             }
+            destroy_tttstep(replyStep);
+            destroy_tttstep(sharedStep);
+            printf("DRAW S R\n");
+            fflush(stdout);
             return 0;
         }
     }
-}
+
 
 int game_OVER(tttgame *game, tttstep *step){
     if (*(game->gameOverType) == 1){
@@ -953,6 +987,10 @@ int game_OVER(tttgame *game, tttstep *step){
             fflush(stdout);
             return -1;
         }
+
+        //print game over message
+        printf("Game over due to natural outcome (type 1)\n");
+
         close(*(game->playerXSocket));
         close(*(game->playerOSocket));
         destroy_tttstep(overStep);
@@ -976,6 +1014,9 @@ int game_OVER(tttgame *game, tttstep *step){
             fflush(stdout);
             return -1;
         }
+
+        //print game over message
+        printf("Game over due to agreed DRAW (type 2)\n");
         close(*(game->playerXSocket));
         close(*(game->playerOSocket));
         destroy_tttstep(overStep);

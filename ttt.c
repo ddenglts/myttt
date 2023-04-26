@@ -52,8 +52,6 @@ int main (int argc, char** argv){
     sock = connect_to_server(argv[1], argv[2]);
     if (sock < 0) err_die("Unable to connect to server");
 
-    setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (int[]){1}, sizeof(int));
-
     for (;;){
         bytes = read(STDIN_FILENO, &buf, 1);
         if (bytes < 0) {

@@ -82,8 +82,6 @@ int main(int argc, char *argv[]){
 
             printf("playerX's connection accepted\n");
 
-            setsockopt(*(game->playerOSocket), IPPROTO_TCP, TCP_NODELAY, (int[]){1}, sizeof(int));
-
 
             //read playerX PLAY step
             step = create_tttstep();
@@ -117,7 +115,6 @@ int main(int argc, char *argv[]){
 
             printf("playerO's connection accepted\n");
 
-            setsockopt(*(game->playerOSocket), IPPROTO_TCP, TCP_NODELAY, (int[]){1}, sizeof(int));
 
 
             //read playerO PLAY step
