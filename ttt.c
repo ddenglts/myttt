@@ -51,8 +51,8 @@ int main (int argc, char** argv){
 
     sock = connect_to_server(argv[1], argv[2]);
     if (sock < 0) err_die("Unable to connect to server");
-    int flag = 1; 
-    setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (char *) &flag, sizeof(int));
+
+    setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (int[]){1}, sizeof(int));
 
     for (;;){
         bytes = read(STDIN_FILENO, &buf, 1);
@@ -76,6 +76,12 @@ int main (int argc, char** argv){
                 printf("Server closed connection\n");
                 fflush(stdout);
                 break;
+            }
+        } else {
+            while (buf != '|'){
+                read(sock, &buf, 1);
+                printf("%c", buf);
+                fflush(stdout);
             }
         }
 

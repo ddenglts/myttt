@@ -1,6 +1,6 @@
 #ifndef _MYUTILS_H
 #define _MYUTILS_H
-
+#define _POSIX_C_SOURCE 200809L
 
 
 #include <stdio.h>
@@ -13,8 +13,9 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
-#include <pthread.h>
 #include <netdb.h>
+#include <pthread.h>
+#include <netinet/tcp.h>
 
 typedef struct _tttstep {
     char *msgType; // 4 chars string + 1 null terminator
@@ -35,11 +36,26 @@ typedef struct _tttgame {
     char *playerOName;
     char *board;
     char *nextPlayer;
+
+    // game phase stuff
+    int *gameOverType; // 1 = natural W/D/L, 2 = agreed DRAW, 3 = RESGN, 4 = bad protocol
+    char *statusXOLoseWin;
+
+    //to deal with threading stuff
+    pthread_t *gameThread;
+    char **activeNames;
+    int *numActiveNames;
+    pthread_mutex_t *activeNamesMutex;
+
+
 } tttgame;
 
 
 typedef char mallocedchar; // dynamic char; created with malloc
 typedef int mallocedint; // dynamic int; created with malloc
+
+extern const char *VALID_READ_MSG_TYPES_STR[9];
+extern const char *VALID_WRITE_MSG_TYPES_STR[9];
 
 
 
@@ -48,6 +64,28 @@ tttstep* create_tttstep(void);
 int destroy_tttstep(tttstep *step);
 tttgame* create_tttgame(void);
 int destroy_tttgame(tttgame *game);
+
+
+
+int read_tttstep(int sock, tttstep *step);
+int read_tttstep_msgType(int sock, tttstep *step);
+int read_tttstep_remainingBytes(int sock, tttstep *step);
+int read_tttstep_PLAY(int sock, tttstep *step);
+int read_tttstep_MOVE(int sock, tttstep *step);
+int read_tttstep_RSGN(int sock, tttstep *step);
+int read_tttstep_DRAW(int sock, tttstep *step);
+int write_tttstep(int sock, tttstep *step);
+int write_tttstep_WAIT(int sock, tttstep *step);
+int write_tttstep_BEGN(int sock, tttstep *step);
+int write_tttstep_MOVD(int sock, tttstep *step);
+int write_tttstep_INVL(int sock, tttstep *step);
+int write_tttstep_DRAW(int sock, tttstep *step);
+int write_tttstep_OVER(int sock, tttstep *step);
+void * start_game(void *game_);
+int game_OVER(tttgame *game, tttstep *step);
+int game_MOVE(tttgame *game, tttstep *step);
+int game_DRAW(tttgame *game, tttstep *step);
+
 
 
 
