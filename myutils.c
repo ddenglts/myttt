@@ -967,6 +967,7 @@ int game_DRAW(tttgame *game, tttstep *step){
             fflush(stdout);
             return 0;
         }
+        return -1;
     }
 
 
