@@ -1,5 +1,5 @@
-server: ttts.c myutils.c myutils.h
-	gcc -g -o sserv ttts.c myutils.c -pthread
+ttts: ttts.c myutils.c myutils.h
+	gcc -g -o ttts ttts.c myutils.c -pthread
 
-client: ttt.c myutils.c myutils.h
-	gcc -g -o sclient ttt.c myutils.c -pthread
+ttt: ttt.c myutils.c myutils.h
+	gcc -g -o ttt ttt.c myutils.c -pthread

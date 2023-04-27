@@ -54,6 +54,8 @@ typedef struct _tttgame {
 typedef char mallocedchar; // dynamic char; created with malloc
 typedef int mallocedint; // dynamic int; created with malloc
 
+
+
 extern const char *VALID_READ_MSG_TYPES_STR[9];
 extern const char *VALID_WRITE_MSG_TYPES_STR[9];
 
@@ -85,6 +87,9 @@ void * start_game(void *game_);
 int game_OVER(tttgame *game, tttstep *step);
 int game_MOVE(tttgame *game, tttstep *step);
 int game_DRAW(tttgame *game, tttstep *step);
+
+int addName(tttgame *game, char *name);
+int delName(tttgame *game, char *name);
 
 
 

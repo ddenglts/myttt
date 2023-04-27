@@ -747,7 +747,9 @@ void * start_game(void *game_){
             *(game->gameOverType) = 4;
             game_OVER(game, step);
         } else {
-            printf("Invalid msgType in start_game. This should be nearly impossible to reach. Killing thread\n");
+            printf("Invalid msgType in start_game. This should be nearly impossible to reach as read_tttstep only accepts certain msgTypes. Killing thread\n");
+            delName(game, game->playerXName);
+            delName(game, game->playerOName);
             pthread_exit(NULL);
             fflush(stdout);
             *(game->gameOverType) = 4;
@@ -969,6 +971,7 @@ int game_DRAW(tttgame *game, tttstep *step){
 
 
 int game_OVER(tttgame *game, tttstep *step){
+
     if (*(game->gameOverType) == 1){
         //natural outcome
         tttstep *overStep = create_tttstep();
@@ -993,6 +996,8 @@ int game_OVER(tttgame *game, tttstep *step){
 
         close(*(game->playerXSocket));
         close(*(game->playerOSocket));
+        delName(game, game->playerXName);
+        delName(game, game->playerOName);
         destroy_tttstep(overStep);
         destroy_tttgame(game);
         destroy_tttstep(step);
@@ -1019,6 +1024,8 @@ int game_OVER(tttgame *game, tttstep *step){
         printf("Game over due to agreed DRAW (type 2)\n");
         close(*(game->playerXSocket));
         close(*(game->playerOSocket));
+        delName(game, game->playerXName);
+        delName(game, game->playerOName);
         destroy_tttstep(overStep);
         destroy_tttgame(game);
         destroy_tttstep(step);
@@ -1046,6 +1053,8 @@ int game_OVER(tttgame *game, tttstep *step){
         }
         close(*(game->playerXSocket));
         close(*(game->playerOSocket));
+        delName(game, game->playerXName);
+        delName(game, game->playerOName);
         destroy_tttstep(overStep);
         destroy_tttgame(game);
         destroy_tttstep(step);
@@ -1068,6 +1077,8 @@ int game_OVER(tttgame *game, tttstep *step){
         }
         close(*(game->playerXSocket));
         close(*(game->playerOSocket));
+        delName(game, game->playerXName);
+        delName(game, game->playerOName);
         destroy_tttstep(overStep);
         destroy_tttgame(game);
         destroy_tttstep(step);
@@ -1078,8 +1089,50 @@ int game_OVER(tttgame *game, tttstep *step){
     fflush(stdout);
     close(*(game->playerXSocket));
     close(*(game->playerOSocket));
+    delName(game, game->playerXName);
+    delName(game, game->playerOName);
     destroy_tttgame(game);
     destroy_tttstep(step);
     pthread_exit(NULL);
     
+}
+
+
+
+int addName(tttgame *game, char* name){
+    pthread_mutex_lock(game->activeNamesMutex);
+    printf("numActiveNames: %d\n", *(game->numActiveNames));
+    fflush(stdout);
+    for (int i = 0; i < *(game->numActiveNames); i++){
+        if (strcmp(name, game->activeNames[i]) == 0){
+            pthread_mutex_unlock(game->activeNamesMutex);
+            return -1;
+        }
+    }
+    
+    *(game->numActiveNames) += 1;
+    game->activeNames = realloc(game->activeNames, (*(game->numActiveNames)) * (sizeof(char*)));
+    game->activeNames[*(game->numActiveNames) - 1] = malloc(256 * sizeof(char));
+    strcpy(game->activeNames[*(game->numActiveNames) - 1], name);
+    pthread_mutex_unlock(game->activeNamesMutex);
+    return 0;
+
+}
+
+int delName(tttgame *game, char* name){
+    pthread_mutex_lock(game->activeNamesMutex);
+    for (int i = 0; i < *(game->numActiveNames); i++){
+        if (strcmp(name, game->activeNames[i]) == 0){
+            for (int j = i; j < *(game->numActiveNames) - 1; j++){
+                strcpy(game->activeNames[j], game->activeNames[j+1]);
+            }
+            free(game->activeNames[*(game->numActiveNames) - 1]);
+            *(game->numActiveNames) -= 1;
+            game->activeNames = realloc(game->activeNames, (*(game->numActiveNames)) * (sizeof(char*)));
+            pthread_mutex_unlock(game->activeNamesMutex);
+            return 0;
+        }
+    }
+    pthread_mutex_unlock(game->activeNamesMutex);
+    return -1;
 }

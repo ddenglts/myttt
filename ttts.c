@@ -55,6 +55,11 @@ int main(int argc, char *argv[]){
     tttgame *game;
     pthread_mutex_t *myMutex = malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(myMutex, NULL);
+    char **activeNames = malloc(1 * sizeof(char*));
+    activeNames[0] = malloc(1 * sizeof(char));
+    strcpy(activeNames[0], "");
+    int *numActiveNames = malloc(1 * sizeof(int));
+    *numActiveNames = 1;
 
 
     //create listener for connections
@@ -68,7 +73,12 @@ int main(int argc, char *argv[]){
 
     //accept connections
     while (1){
+        printf("NEW GAME STARTING\n");
+        fflush(stdout);
         game = create_tttgame();
+        game->activeNames = activeNames;
+        game->numActiveNames = numActiveNames;
+        game->activeNamesMutex = myMutex;
 
         //pairing, waiting, begin, etc...
         {
@@ -84,20 +94,43 @@ int main(int argc, char *argv[]){
 
 
             //read playerX PLAY step
-            step = create_tttstep();
-            if (read_tttstep(*(game->playerXSocket), step) == -1){
-                printf("read_tttstep for X's PLAY failed, bad protocol\n");
-                fflush(stdout);
-                break;
-            }
+            int exitLoop = 0;
+            while (1){
+                step = create_tttstep();
+                if (read_tttstep(*(game->playerXSocket), step) == -1){
+                    printf("read_tttstep for X's PLAY failed, bad protocol\n");
+                    fflush(stdout);
+                    exitLoop = 1;
+                    break;
+                }
 
-            if (strcmp(step->msgType, "PLAY") != 0){
-                printf("expected PLAY step from playerX\n");
-                fflush(stdout);
+                if (strcmp(step->msgType, "PLAY") != 0){
+                    printf("expected PLAY step from playerX\n");
+                    fflush(stdout);
+                    tttstep *invalidStep123 = create_tttstep();
+                    strcpy(invalidStep123->msgType, "INVL");
+                    *(invalidStep123->remainingBytes) = 20;
+                    strcpy(invalidStep123->reason, "expected PLAY step!");
+                    write_tttstep_INVL(*(game->playerOSocket), invalidStep123);
+                    destroy_tttstep(invalidStep123);
+                    continue;
+                }
+                if (addName(game, step->name) == -1){
+                    printf("name already in use\n");
+                    fflush(stdout);
+                    tttstep *invalidStep123 = create_tttstep();
+                    strcpy(invalidStep123->msgType, "INVL");
+                    *(invalidStep123->remainingBytes) = 20;
+                    strcpy(invalidStep123->reason, "name already in use");
+                    write_tttstep_INVL(*(game->playerOSocket), invalidStep123);
+                    destroy_tttstep(invalidStep123);
+                    continue;
+                }
+                strcpy(game->playerXName, step->name);
+                destroy_tttstep(step);
                 break;
             }
-            strcpy(game->playerXName, step->name);
-            destroy_tttstep(step);
+            if (exitLoop == 1) break;
 
 
             //tell playerX to wait
@@ -118,14 +151,43 @@ int main(int argc, char *argv[]){
 
 
             //read playerO PLAY step
-            step = create_tttstep();
-            read_tttstep(*(game->playerOSocket), step);
-            if (strcmp(step->msgType, "PLAY") != 0){
-                printf("expected PLAY step from playerO\n");
-                fflush(stdout);
+            while (1){
+                step = create_tttstep();
+                if (read_tttstep(*(game->playerOSocket), step) == -1){
+                    printf("read_tttstep for O's PLAY failed, bad protocol\n");
+                    fflush(stdout);
+                    exitLoop = 1;
+                    break;
+                }
+                if (strcmp(step->msgType, "PLAY") != 0){
+                    printf("expected PLAY step from playerO\n");
+                    fflush(stdout);
+                    tttstep *invalidStep123 = create_tttstep();
+                    strcpy(invalidStep123->msgType, "INVL");
+                    *(invalidStep123->remainingBytes) = 20;
+                    strcpy(invalidStep123->reason, "expected PLAY step!");
+                    write_tttstep_INVL(*(game->playerOSocket), invalidStep123);
+                    destroy_tttstep(invalidStep123);
+                    continue;
+                }
+                if (addName(game, step->name) == -1){
+                    printf("name already in use\n");
+                    fflush(stdout);
+                    tttstep *invalidStep123 = create_tttstep();
+                    strcpy(invalidStep123->msgType, "INVL");
+                    *(invalidStep123->remainingBytes) = 20;
+                    strcpy(invalidStep123->reason, "name already in use");
+                    write_tttstep_INVL(*(game->playerOSocket), invalidStep123);
+                    destroy_tttstep(invalidStep123);
+
+                    continue;
+                }
+                strcpy(game->playerOName, step->name);
+                destroy_tttstep(step);
+                break;
             }
-            strcpy(game->playerOName, step->name);
-            destroy_tttstep(step);
+            if (exitLoop == 1) break;
+
 
             //tell playerO to wait
             step = create_tttstep();
