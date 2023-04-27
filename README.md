@@ -1,5 +1,13 @@
 # Creator: djd308 (David Deng), _NO PARTNER_
 
+# HOW TO MAKE THE PROGRAMS
+    ttts: make
+    ttts: make ttts
+    ttt: make ttt
+
+# IMPLEMENTATION NOTES
+    CONCURRENT GAMES using pthreads and mutex have been implemented
+
 # Lock Use
     I have a list of names, number of names, and a mutex. 
     Operations concerning these shared resources are interacted with safely through a very bare interface using "addName()" and "delName()".
@@ -13,7 +21,6 @@
         4. Natural game outcome, three-in-a-row or board full
         5. Unique names
 
-# 
 
 ## 1. Handling bad protocol interaction
     input:
