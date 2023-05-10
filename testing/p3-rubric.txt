@@ -1,0 +1,183 @@
+Project III Rubric
+==================
+
+Basic project (70 points)
+[10] Project compiles and includes README
+	[7 points] compiles, but has improper directory structure or incorrect name
+[10] README and test plan quality
+	[5 points] README and test plan exist and show at least some thought
+	[10 points] Test plan seems reasonably comprehensive
+[30] Correct flows
+	raw scenarios 1 - 3: 5 points each
+
+	play scenarios 1, 3, 4: 1 point each
+	play scenarios 2, 5 - 9: 2 points each
+		
+
+[20] Error flows
+	raw scenario 4: 10 points
+	play scenarios 10 - 15: 1 points each
+	play scenarios 16 - 17: 2 points each
+
+Multithreaded project (100 points)
+[30] Simultaneous flows
+	raw scenario 5: 15 points
+	play scenarios 18 - 20: 5 points each
+
+Asynchronous project (120 points)
+[20] Asynchronous flows
+	raw scenario 6: 10 points
+	play scenarios 21 - 22: 4 points each
+	play scenario 23: 2 points
+
+Note that the test code primarily checks whether messages arrive
+when expected and have the proper message code (e.g., MOVD or OVER).
+The tests for normal game resolution will catch whether the server is
+properly updating the tic-tac-toe grid.
+
+It should not be necessary to restart the server after each test.
+Take 10 points off if the server terminates after error flows.
+
+For the raw scenarios, give credit if the server responses approximate
+correctness. Forgive unnecessary messages and bytes.
+
+
+
+Tester usage:
+
+./raw host port scenario_number
+
+The raw tester will print messages as they are received. Non-printable
+characters will be written as escaped hexadecimal byte values (e.g.,
+"\0" or "\7f"), aside from newline ("\n") and backslash ("\\").
+Messages indicate the file descriptor they were received from.
+
+Press enter to send the next message. You may also type the following
+1-character commands followed by enter:
+
+	s - swap file descriptors for X and O
+	n - skip next message and continue
+	q - abort scenario
+
+Any other text will be sent to the current output socket as-is,
+excluding the newline.
+
+The tester will print "Expecting OVER" when it expects the game
+to end. Press enter to successfully conclude the test, or q for
+failure, or some other message to send.
+
+example transcript
+---- 
+Scenario 4. O moves in taken spot, resigns.
+Joe Smith connecting to wax.cs.rutgers.edu:15000
+  [3] Next message PLAY|10|Joe Smith|
+3 awaiting responses
+
+3 >> PLAY|10|Joe Smith|
+Jane Doe connecting to wax.cs.rutgers.edu:15000
+    3 << 7 bytes: WAIT|0|
+  [4] Next message PLAY|9|Jane Doe|
+4 awaiting responses
+
+4 >> PLAY|9|Jane Doe|
+  [3] Next message MOVE|6|X|1,2|
+    4 << 7 bytes: WAIT|0|
+    3 << 19 bytes: BEGN|11|X|Jane Doe|
+    4 << 20 bytes: BEGN|12|O|Joe Smith|
+
+3 >> MOVE|6|X|1,2|
+  [4] Next message MOVE|6|O|1,2|
+    4 << 24 bytes: MOVD|16|X|1,2|.X.......|
+    3 << 24 bytes: MOVD|16|X|1,2|.X.......|
+RSGN|0|
+4 >> RSGN|0|
+  [4] Next message MOVE|6|O|1,2|
+    4 << 23 bytes: OVER|15|L|You resigned|
+    4 got 0. Shutting down.
+    3 << 28 bytes: OVER|20|W|Opponent resigned|
+    3 got 0. Shutting down.
+n
+Skipping
+  [4] Next message RSGN|0|
+n
+Skipping
+  [3] Expecting OVER
+
+Success
+----
+
+
+./play host port scenario_number
+
+will print Success or Failure
+on failure, will have exit status 1
+
+Individual tests should not be delayed longer than 1 second. If the
+test hangs after sending a message, the most likely reason is that
+it is waiting for an expected response from the server that is not
+coming (e.g., the client has sent an incorrect or bad message and is
+waiting for the server to respond with INVL).
+
+
+
+Correct flows
+-------------
+
+raw 
+1. Line by X in 5 moves.
+2. Expected draw with full board.
+3. Line by O in 6 moves.
+
+play
+1. Line by X in 5 moves
+2. Full board, one message sent with 1 second delay
+3. Full board
+4. Line by O in 8 moves
+5. X resigns
+6. O resigns
+7. O suggests draw, X accepts
+8. O suggests draw, X rejects
+9. O sends a move and resign in same message
+	(handles servers that detect the resign immediately, and those
+	that hold it until X moves)
+
+Error flows
+-----------
+
+raw
+4. O moves in taken spot, resigns.
+
+play
+10. Detect move in an occupied cell
+11. Detect move off the board
+12. Detect move with incorrect role
+13. Detect move sent without PLAY
+14. Detect PLAY sent after BEGN
+15. Detect DRAW A sent not in response to DRAW S
+
+16. Detect message longer than length field
+17. Detect message shorter than length field
+
+
+Simultaneous flows
+------------------
+
+raw
+5. Two short games.
+
+play
+18. Two short games
+19. Two short games, one with an illegal move
+20. Two short games with one name used by both
+
+Asynchronous flows
+------------------
+
+raw
+6. X resigns after moving.
+
+play
+21. X resigns after moving
+22. X suggests draw after moving, O accepts
+
+23. X moves during O's turn (should be rejected)

@@ -555,6 +555,13 @@ int write_tttstep_MOVD(int sock, tttstep *step){
     strcat(wbuff, "|");
     strcat(wbuff, step->role);
     strcat(wbuff, "|");
+    char movePos[4];
+    movePos[1] = ',';
+    movePos[3] = '\0';
+    movePos[0] = step->position[0] + '0';
+    movePos[2] = step->position[1] + '0';
+    strcat(wbuff, movePos);
+    strcat(wbuff, "|");
     strcat(wbuff, step->board);
     strcat(wbuff, "|");
 
@@ -796,6 +803,8 @@ int game_MOVE(tttgame *game, tttstep *step){
     strcpy(tempStep->msgType, "MOVD");
     *(tempStep->remainingBytes) = 6;
     strcpy(tempStep->role, step->role);
+    tempStep->position[0] = step->position[0];
+    tempStep->position[1] = step->position[1];
     strcpy(tempStep->board, game->board);
     memcpy(tempStep->position, step->position, 2*sizeof(int));
     if (write_tttstep_MOVD(*(game->playerXSocket), tempStep) == -1){
